@@ -6,6 +6,8 @@
   "author": {
     "name": "Dmitry Demarine"
   },
+  "homepage": "https://github.com/demarin/flight-deck",
+  "repository": "https://github.com/demarin/flight-deck",
   "logo": "assets/icon.png",
   "suggestedPrompts": [
     "Fix the failing test in tests/test_parser.py",

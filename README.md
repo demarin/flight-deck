@@ -1,4 +1,4 @@
-# Flight Deck
+# <img src="assets/icon.png" width="36" height="36" alt="Flight Deck logo" valign="middle"> Flight Deck
 
 A plugin for **Claude Code** and **Google Antigravity** (CLI `agy`, the App and the VS Code
 extension) that changes how the agent talks to you while it works:
@@ -11,7 +11,7 @@ extension) that changes how the agent talks to you while it works:
 
 The full protocol is in [`skills/flight-deck/SKILL.md`](skills/flight-deck/SKILL.md).
 
-**What installing it does.** The plugin changes Claude's behaviour in every session, on purpose:
+**What installing it does in Claude Code.** The plugin changes Claude's behaviour in every session, on purpose:
 a SessionStart hook adds the protocol to the context of each new session, and a UserPromptSubmit
 hook adds a one-line reminder of the current mode to each of your messages. You can switch it off
 per session or per shell (see below). It sends nothing anywhere; see
@@ -19,8 +19,10 @@ per session or per shell (see below). It sends nothing anywhere; see
 
 ## Install
 
+### Claude Code
+
 ```text
-/plugin marketplace add <git-url-or-owner/repo>
+/plugin marketplace add demarin/flight-deck
 /plugin install flight-deck@flight-deck
 ```
 
@@ -28,10 +30,10 @@ Start a new session. The mode loads automatically ("Loading flight-deck mode..."
 
 To try it without installing: `claude --plugin-dir /path/to/flight-deck`.
 
-## Antigravity
+### Antigravity
 
 ```text
-agy plugin install <git-url-or-path-to-this-repo>
+agy plugin install https://github.com/demarin/flight-deck.git
 ```
 
 The CLI and the VS Code extension run the same `agy` engine and share plugins installed in
@@ -89,7 +91,7 @@ The reply is the commit message itself, with no "Here is…" around it.
 The first sentence is the answer (for example, which header breaks the signature); the mechanics,
 the fix and how to verify it follow.
 
-## Switching it on and off
+## Switching it on and off (Claude Code)
 
 | Command | Effect |
 |---|---|
@@ -102,8 +104,9 @@ A resumed session keeps its mode. These commands are handled by a hook and cost 
 Type the command alone on the line; `/flight-deck off and fix X` is not recognised as a switch.
 
 To start every session in a shell with the mode off: `FLIGHT_DECK=off claude`.
+*(For Antigravity, switching is per conversation; see the table under [Antigravity](#antigravity).)*
 
-## Output styles
+## Output styles (Claude Code)
 
 An output style such as *Explanatory* asks for teaching asides while Claude works. Flight Deck
 tells Claude to drop them in flight and keep only those that carry real value for the final
@@ -130,9 +133,9 @@ Requires Node.js 18+. Tests: `npm test` (no dependencies).
 
 ## What the hooks see and store
 
-- **SessionStart** reads the session id and why the session started (new, resumed, compacted) and
+- **SessionStart (Claude Code)** reads the session id and why the session started (new, resumed, compacted) and
   prints the protocol from `SKILL.md`. It reads nothing else.
-- **UserPromptSubmit** receives each prompt you send, as every hook of this kind does. It only
+- **UserPromptSubmit (Claude Code)** receives each prompt you send, as every hook of this kind does. It only
   checks whether the prompt is a `/flight-deck` command. Prompts are not stored, logged or sent
   anywhere.
 - **Stored on disk:** one small file per session, `~/.claude/flight-deck/state/<session_id>.json`,
@@ -143,7 +146,7 @@ Requires Node.js 18+. Tests: `npm test` (no dependencies).
   in the same way. Nothing else is kept.
 - **Network:** none. The protocol is read from the plugin folder; nothing is downloaded at runtime.
 
-## Troubleshooting
+## Troubleshooting (Claude Code)
 
 | Symptom | Check |
 |---|---|
