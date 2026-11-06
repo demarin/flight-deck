@@ -9,6 +9,9 @@
 //    swallows unknown slash commands): store the mode for this conversation,
 //    show the answer to the user via an errorMessage step (never sent to the
 //    model) and terminate the turn, so the command costs no model call.
+//    errorMessage is required: without it `terminate` is ignored and the
+//    model runs (measured on agy 1.5.0). Side effect: `agy -p --output-format
+//    json` keeps reporting that message as `error` on later turns.
 // 2. Any other input while the mode is off: an ephemeral note telling the
 //    model to disregard the rule. A rule cannot be removed from the prompt for
 //    one conversation, only overridden.
@@ -59,7 +62,9 @@ function main() {
   const state = store.read(id);
   const mode = state ? state.mode : defaultMode();
 
-  if (!state && input.invocationNum === 1) store.prune();
+  // First time this conversation is seen: a cheap moment to drop stale state.
+  // (Measured on agy 1.5.0: the hook runs once per user turn, invocationNum 0.)
+  if (!state) store.prune();
 
   const match = COMMAND.exec(text);
   if (match) {

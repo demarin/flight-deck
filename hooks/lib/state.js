@@ -26,8 +26,9 @@ function claudeStateDir() {
   return path.join(configDir(), 'flight-deck', 'state');
 }
 
-// Antigravity gives each plugin a data folder in PLUGIN_DATA; fall back to
-// ~/.gemini/flight-deck when a surface does not set it.
+// Antigravity documents a per-plugin data folder in PLUGIN_DATA, but agy 1.5.0
+// does not pass it to hooks, so in practice the fallback ~/.gemini/flight-deck
+// is used.
 function antigravityStateDir() {
   const base = process.env.PLUGIN_DATA || path.join(os.homedir(), '.gemini', 'flight-deck');
   return path.join(base, 'state');

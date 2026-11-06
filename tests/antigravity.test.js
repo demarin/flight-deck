@@ -71,6 +71,17 @@ test('FLIGHT_DECK=off starts conversations off', () => {
   assert.match(res.injectSteps[0].ephemeralMessage, /^FLIGHT DECK OFF/);
 });
 
+test('a new conversation prunes state untouched for 14 days; invocationNum 0 is what agy sends', () => {
+  const dir = freshDataDir();
+  hook({ lastUserInput: '/flight-deck off', conversationId: 'old' }, dir);
+  const oldFile = path.join(dir, 'state', 'old.json');
+  const past = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+  fs.utimesSync(oldFile, past, past);
+
+  hook({ lastUserInput: 'x', conversationId: 'new', invocationNum: 0 }, dir);
+  assert.equal(fs.existsSync(oldFile), false);
+});
+
 test('rules/AGENTS.md is up to date with SKILL.md and fits the 24 KB rule limit', () => {
   const actual = fs.readFileSync(OUT, 'utf8');
   assert.equal(actual, render(), 'stale: run `npm run build`');

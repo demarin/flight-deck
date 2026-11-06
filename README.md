@@ -46,7 +46,13 @@ SessionStart injection or per-turn reminder is needed.
 | Switch off everywhere | `agy plugin disable flight-deck`, or Customizations → Installed → ⋮ in the App. Your choice survives plugin updates. |
 
 `FLIGHT_DECK=off` starts conversations in that shell switched off. Per-conversation state lives in
-the plugin's data folder (`PLUGIN_DATA`, or `~/.gemini/flight-deck/state/`).
+`~/.gemini/flight-deck/state/` (or under `PLUGIN_DATA`, should Antigravity start passing it to
+hooks).
+
+Known limitation: the switch answers through an error message step, the only step that makes
+Antigravity stop the turn before the model is called. In `agy -p --output-format json`, later turns
+of the same conversation keep reporting that message in the `error` field; the replies themselves
+are unaffected.
 
 The plugin's `skills/` folder is excluded for Antigravity (`skills.json`): the rule already carries
 the protocol, and a skill would add a duplicate and a competing `/flight-deck` slash command.
