@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "flight-deck",
+  "description": "Flight Deck: high-density engineering communication mode for Claude Code.",
+  "owner": {
+    "name": "Dmitry Demarine"
+  },
+  "plugins": [
+    {
+      "name": "flight-deck",
+      "description": "Loads a high-density communication protocol into every session: log-like status in flight, self-contained debrief at the end. Toggle with /flight-deck on|off|status.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
