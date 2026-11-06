@@ -1,9 +1,9 @@
-// flight-deck — shared state helpers for the hooks.
+// flight-deck — shared state helpers for the Claude Code and Antigravity hooks.
 //
-// State is kept per session, so `/flight-deck off` in one terminal does not
-// switch the mode off in another one running at the same time:
-//   $CLAUDE_CONFIG_DIR/flight-deck/state/<session_id>.json
-//   { "mode": "on" | "off", "rulesLoaded": true | false }
+// State is kept per session (Claude Code) or per conversation (Antigravity),
+// so `/flight-deck off` in one does not switch the mode off in another one
+// running at the same time:
+//   <state dir>/<id>.json   { "mode": "on" | "off", "rulesLoaded": true | false }
 //
 // Every read and write is best-effort: a hook must never break a session, so
 // all filesystem errors are swallowed and the caller falls back to defaults.
@@ -22,20 +22,22 @@ function configDir() {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 }
 
-function stateDir() {
+function claudeStateDir() {
   return path.join(configDir(), 'flight-deck', 'state');
 }
 
-// Session ids come from Claude Code, but they become a file name: keep only a
-// safe alphabet so a crafted id cannot escape the state directory.
+// Antigravity gives each plugin a data folder in PLUGIN_DATA; fall back to
+// ~/.gemini/flight-deck when a surface does not set it.
+function antigravityStateDir() {
+  const base = process.env.PLUGIN_DATA || path.join(os.homedir(), '.gemini', 'flight-deck');
+  return path.join(base, 'state');
+}
+
+// Ids come from the host, but they become a file name: keep only a safe
+// alphabet so a crafted id cannot escape the state directory.
 function safeSessionId(id) {
   if (typeof id !== 'string') return null;
   return /^[A-Za-z0-9_-]{1,128}$/.test(id) ? id : null;
-}
-
-function statePath(sessionId) {
-  const id = safeSessionId(sessionId);
-  return id ? path.join(stateDir(), id + '.json') : null;
 }
 
 // Mode a new session starts in. FLIGHT_DECK=off opts out per shell.
@@ -43,65 +45,73 @@ function defaultMode() {
   return (process.env.FLIGHT_DECK || '').trim().toLowerCase() === 'off' ? 'off' : 'on';
 }
 
-function readState(sessionId) {
-  const file = statePath(sessionId);
-  if (!file) return null;
-  try {
-    const st = fs.lstatSync(file);
-    if (!st.isFile() || st.size > MAX_STATE_BYTES) return null; // refuses symlinks too
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!data || !MODES.has(data.mode)) return null;
-    return { mode: data.mode, rulesLoaded: data.rulesLoaded === true };
-  } catch (e) {
-    return null;
+function createStore(dir) {
+  function filePath(id) {
+    const safe = safeSessionId(id);
+    return safe ? path.join(dir, safe + '.json') : null;
   }
-}
 
-function writeState(sessionId, state) {
-  const file = statePath(sessionId);
-  if (!file || !MODES.has(state.mode)) return false;
-  try {
-    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  function read(id) {
+    const file = filePath(id);
+    if (!file) return null;
     try {
-      if (fs.lstatSync(file).isSymbolicLink()) return false;
+      const st = fs.lstatSync(file);
+      if (!st.isFile() || st.size > MAX_STATE_BYTES) return null; // refuses symlinks too
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!data || !MODES.has(data.mode)) return null;
+      return { mode: data.mode, rulesLoaded: data.rulesLoaded === true };
     } catch (e) {
-      /* does not exist yet */
+      return null;
     }
-    const tmp = file + '.' + process.pid + '.tmp';
-    const flags =
-      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0);
-    const fd = fs.openSync(tmp, flags, 0o600);
-    try {
-      fs.writeSync(fd, JSON.stringify({ mode: state.mode, rulesLoaded: state.rulesLoaded === true }));
-    } finally {
-      fs.closeSync(fd);
-    }
-    fs.renameSync(tmp, file);
-    return true;
-  } catch (e) {
-    return false;
   }
-}
 
-// Drop state files of sessions nobody has touched for two weeks.
-function pruneOldState(now = Date.now()) {
-  try {
-    for (const name of fs.readdirSync(stateDir())) {
-      const file = path.join(stateDir(), name);
+  function write(id, state) {
+    const file = filePath(id);
+    if (!file || !MODES.has(state.mode)) return false;
+    try {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       try {
-        const st = fs.lstatSync(file);
-        if (now - st.mtimeMs > STATE_TTL_MS) fs.unlinkSync(file);
+        if (fs.lstatSync(file).isSymbolicLink()) return false;
       } catch (e) {
-        /* raced with another session */
+        /* does not exist yet */
       }
+      const tmp = file + '.' + process.pid + '.tmp';
+      const flags =
+        fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0);
+      const fd = fs.openSync(tmp, flags, 0o600);
+      try {
+        fs.writeSync(fd, JSON.stringify({ mode: state.mode, rulesLoaded: state.rulesLoaded === true }));
+      } finally {
+        fs.closeSync(fd);
+      }
+      fs.renameSync(tmp, file);
+      return true;
+    } catch (e) {
+      return false;
     }
-  } catch (e) {
-    /* no state dir yet */
   }
+
+  // Drop state files nobody has touched for two weeks.
+  function prune(now = Date.now()) {
+    try {
+      for (const name of fs.readdirSync(dir)) {
+        const file = path.join(dir, name);
+        try {
+          if (now - fs.lstatSync(file).mtimeMs > STATE_TTL_MS) fs.unlinkSync(file);
+        } catch (e) {
+          /* raced with another session */
+        }
+      }
+    } catch (e) {
+      /* no state dir yet */
+    }
+  }
+
+  return { dir, filePath, read, write, prune };
 }
 
 // The protocol text: SKILL.md without its frontmatter. One source for the
-// skill, the SessionStart injection and the re-injection after `/flight-deck on`.
+// Claude Code skill, its SessionStart injection and the Antigravity rule.
 function loadRules() {
   try {
     const skill = path.join(__dirname, '..', '..', 'skills', 'flight-deck', 'SKILL.md');
@@ -128,15 +138,22 @@ function readStdinJson() {
   }
 }
 
+// Claude Code's store, kept under the original names its hooks use.
+const claude = {
+  readState: (id) => createStore(claudeStateDir()).read(id),
+  writeState: (id, state) => createStore(claudeStateDir()).write(id, state),
+  pruneOldState: (now) => createStore(claudeStateDir()).prune(now),
+  stateDir: claudeStateDir,
+  statePath: (id) => createStore(claudeStateDir()).filePath(id),
+};
+
 module.exports = {
+  ...claude,
+  antigravityStateDir,
+  createStore,
   defaultMode,
   loadRules,
-  pruneOldState,
-  readState,
   readStdinJson,
   rulesBanner,
   safeSessionId,
-  stateDir,
-  statePath,
-  writeState,
 };

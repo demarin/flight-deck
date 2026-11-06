@@ -1,6 +1,6 @@
 {
   "name": "flight-deck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "High-density engineering mode for Claude Code. Adds its protocol to every session via a SessionStart hook and a one-line mode reminder to each prompt: log-like status lines while tools run, payload-only answers to atomic queries, a self-contained debrief at the end. Toggle per session with /flight-deck on|off|status.",
   "author": {
     "name": "Dmitry Demarine"

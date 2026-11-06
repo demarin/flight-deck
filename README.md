@@ -1,6 +1,7 @@
 # Flight Deck
 
-A Claude Code plugin that changes how Claude talks to you while it works:
+A plugin for **Claude Code** and **Google Antigravity** (CLI `agy`, the App and the VS Code
+extension) that changes how the agent talks to you while it works:
 
 - **In flight** (while tools run): one or two telegraphic log lines per key step —
   `→ [DB] Connecting to replica…`, `✓ Build passed. Running migrations…` — and nothing else.
@@ -26,6 +27,29 @@ per session or per shell (see below). It sends nothing anywhere; see
 Start a new session. The mode loads automatically ("Loading flight-deck mode..." at startup).
 
 To try it without installing: `claude --plugin-dir /path/to/flight-deck`.
+
+## Antigravity
+
+```text
+agy plugin install <git-url-or-path-to-this-repo>
+```
+
+The CLI and the VS Code extension run the same `agy` engine and share plugins installed in
+`~/.gemini/config/plugins/`, so one install covers both. In Antigravity the protocol is an
+**always-on plugin rule** (`rules/AGENTS.md`), placed in the system prompt on every turn; no
+SessionStart injection or per-turn reminder is needed.
+
+| To | Do |
+|---|---|
+| Switch off for this conversation | Send `/flight-deck off` (or `flight-deck off`, without the slash, if your surface does not pass unknown slash commands through). A PreInvocation hook stores the mode, shows the answer to you only and stops the turn before the model is called. |
+| Switch on again / check | `/flight-deck on`, `/flight-deck status` |
+| Switch off everywhere | `agy plugin disable flight-deck`, or Customizations → Installed → ⋮ in the App. Your choice survives plugin updates. |
+
+`FLIGHT_DECK=off` starts conversations in that shell switched off. Per-conversation state lives in
+the plugin's data folder (`PLUGIN_DATA`, or `~/.gemini/flight-deck/state/`).
+
+The plugin's `skills/` folder is excluded for Antigravity (`skills.json`): the rule already carries
+the protocol, and a skill would add a duplicate and a competing `/flight-deck` slash command.
 
 ## Examples
 
@@ -86,8 +110,15 @@ Default in `/config`.
 |---|---|
 | `hooks/session-start.js` | SessionStart hook: prints the protocol, which Claude Code adds to the session's context. Re-injects it after compaction. |
 | `hooks/prompt-submit.js` | UserPromptSubmit hook: handles `/flight-deck on\|off\|status`; adds a one-line reminder of the mode to every other prompt. |
-| `hooks/lib/state.js` | Per-session state in `~/.claude/flight-deck/state/<session_id>.json`, pruned after 14 days. |
+| `hooks/lib/state.js` | Per-session state (Claude Code: `~/.claude/flight-deck/state/<session_id>.json`; Antigravity: see above), pruned after 14 days. |
 | `skills/flight-deck/SKILL.md` | The protocol — the one file to edit. |
+| `.claude-plugin/` | Claude Code manifest (with its hooks) and marketplace. |
+| `.antigravity-plugin/plugin.json`, `skills.json` | Antigravity manifest; keeps `skills/` out of the Antigravity plugin. |
+| `rules/AGENTS.md` | Antigravity always-on rule, **generated** from `SKILL.md` by `npm run build`; `npm test` fails when it is stale. |
+| `hooks.json`, `hooks/antigravity/pre-invocation.js` | Antigravity PreInvocation hook: `/flight-deck on\|off\|status` and the OFF note. |
+| `assets/icon.png` | Icon for both catalogs. |
+
+After editing `SKILL.md`, run `npm run build` and commit `rules/AGENTS.md` with it.
 
 Requires Node.js 18+. Tests: `npm test` (no dependencies).
 
@@ -101,6 +132,9 @@ Requires Node.js 18+. Tests: `npm test` (no dependencies).
 - **Stored on disk:** one small file per session, `~/.claude/flight-deck/state/<session_id>.json`,
   holding the mode (`on` or `off`) and whether the protocol has been loaded. Files untouched for
   14 days are deleted.
+- **Antigravity's PreInvocation hook** receives your latest message (`lastUserInput`) and the
+  conversation id, checks only for a `/flight-deck` command and stores the mode per conversation
+  in the same way. Nothing else is kept.
 - **Network:** none. The protocol is read from the plugin folder; nothing is downloaded at runtime.
 
 ## Troubleshooting

@@ -1,0 +1,11 @@
+{
+  "flight-deck-toggle": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node hooks/antigravity/pre-invocation.js",
+        "timeout": 5
+      }
+    ]
+  }
+}

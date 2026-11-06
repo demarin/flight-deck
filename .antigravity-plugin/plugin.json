@@ -1,0 +1,15 @@
+{
+  "name": "flight-deck",
+  "displayName": "Flight Deck",
+  "description": "High-density engineering mode: an always-on rule for terse log lines while tools run, payload-only answers to atomic queries and a self-contained debrief at the end. Switch it per conversation with /flight-deck on|off|status.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Dmitry Demarine"
+  },
+  "logo": "assets/icon.png",
+  "suggestedPrompts": [
+    "Fix the failing test in tests/test_parser.py",
+    "Write a commit message for the staged changes",
+    "Why does the upload fail with SignatureDoesNotMatch?"
+  ]
+}
